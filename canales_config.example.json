@@ -1,0 +1,6 @@
+{
+    "guild_id_example": "channel_id_example",
+    "ultima_patch_note": "YYYY-MM-DD HH:MM:SS",
+    "ultima_notice": "YYYY-MM-DD HH:MM:SS",
+    "ultima_event": "YYYY-MM-DD HH:MM:SS"
+}

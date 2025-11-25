@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "bicheon-serverless"
+resolve_s3 = true
+s3_prefix = "bicheon-serverless"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "DiscordPublicKey=\"REMOVED_PUBLIC_KEY\" DiscordToken=\"REMOVED_TOKEN\""
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  bicheon4ever-serverless
+  
+  Serverless architecture for Bicheon4ever Discord Bot.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+    Runtime: python3.12
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        DISCORD_PUBLIC_KEY: !Ref DiscordPublicKey
+        DISCORD_TOKEN: !Ref DiscordToken
+        TABLE_CONFIG: !Ref ConfigTable
+        TABLE_STATE: !Ref StateTable
+
+Parameters:
+  DiscordPublicKey:
+    Type: String
+    Description: Public Key from Discord Developer Portal (for signature verification)
+  DiscordToken:
+    Type: String
+    Description: Bot Token from Discord Developer Portal
+
+Resources:
+  # -------- DYNAMODB TABLES --------
+  ConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BicheonConfig
+      AttributeDefinitions:
+        - AttributeName: guild_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: guild_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  StateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: BicheonState
+      AttributeDefinitions:
+        - AttributeName: key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: key
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  # -------- LAMBDA FUNCTIONS --------
+  
+  # 1. Interactions Handler (Webhooks)
+  InteractionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_function.lambda_handler_interactions
+      Events:
+        ApiGateway:
+          Type: HttpApi
+          Properties:
+            Path: /interactions
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StateTable
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+
+  # 2. Scraper Job (Scheduled)
+  ScraperFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_function.lambda_handler_scraper
+      Timeout: 60 # Scraper might take longer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StateTable
+      Events:
+        ScheduledRule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(30 minutes)
+            Name: ScraperSchedule
+            Description: Run scraper every 30 minutes
+
+Outputs:
+  InteractionsApiUrl:
+    Description: "API Gateway endpoint URL for Discord Interactions"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/interactions"
+  ConfigTableName:
+    Description: "DynamoDB Table for Config"
+    Value: !Ref ConfigTable
+  StateTableName:
+    Description: "DynamoDB Table for State"
+    Value: !Ref StateTable
